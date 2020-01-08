@@ -1,0 +1,471 @@
+package final_project;
+
+import instance.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Scanner;
+
+import instance.*;
+
+public class reservation {
+	
+	private Connection conn;// connection객체를 생성해서 디비에 연결해줌..
+	private static final String USERNAME = "root";
+	private static final String PASSWORD = "ehdgh*7958";
+	private static final String URL = "jdbc:mysql://localhost:3306/reservation_system?serverTimezone=UTC";
+ 
+	Scanner scan = new Scanner(System.in);
+	Hotel hotel = new Hotel();
+	
+    // reservation 생성자
+    public reservation() {
+        
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+ 
+            conn = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+ 
+        } catch (ClassNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            System.out.println("클래스에 적재를 실패!!");
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            System.out.println("mysql에 연결 실패!!");
+        }
+        
+    }
+ 
+	
+	// 호텔 숙소의 room이 비어 있는지 확인 - 이는 check_in 시간과 check_out 시간을 통해 결정
+    public ArrayList<room>  RoomIsEmpty(int H_id, String check_in, String check_out) {
+    	String sql = 
+    			" select r_id,grade,ex_price from room where hotel_id = (select H_id from Reserve where check_in >= ? or check_out <= ? group by H_id)and hotel_id = ?;";
+       PreparedStatement pstmt = null;
+       ArrayList<room> list = new ArrayList<room>();
+        
+        
+        try {
+ 
+            pstmt = conn.prepareStatement(sql);
+
+            pstmt.setString(1, check_in);
+            pstmt.setString(2, check_out);
+            pstmt.setInt(3, H_id);
+            ResultSet re = pstmt.executeQuery();
+            while (re.next()) {
+                room h = new room();
+                h.setr_id(re.getInt("r_id"));
+                h.setgrade(re.getString("grade"));
+                h.setex_price(re.getFloat("ex_price"));
+                list.add(h);
+            }
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+        	e.printStackTrace();
+        	System.out.print("찾고 있는 지역의 호텔은 존재하지 않습니다.");
+        } finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+            	e.printStackTrace();
+            	System.out.print("찾고 있는 지역의 호텔은 존재하지 않습니다.");
+            }
+        }
+        return list;
+    }
+    
+    // 예약 정보를 예약 테이블에 저장
+    public void InsertReserve(Hotel Hotel, client client, String check_in, String check_out, float price) {
+        String sql = "insert into Reserve(user_id, r_id, H_id, check_in, check_out, total) values(?,?,?,?,?,?);";
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, client.getUser_Id());
+            pstmt.setInt(2, Hotel.getroom().getr_id());
+            pstmt.setInt(3, Hotel.getid());
+            pstmt.setString(4, check_in);
+            pstmt.setString(5, check_out);
+            pstmt.setFloat(6, price);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    public void InsertPerson( int adult, int child) {
+        String sql = "insert into R_person(adult,child) values(?,?);";
+        PreparedStatement pstmt = null;
+       
+        try {
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, adult);
+            pstmt.setInt(2, child);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    // breakfast 테이블에서 해당 호텔을 이용할 성인의 조식가격을 가져옴
+    public float show_Adprice(int H_id) {
+    	String sql = 
+    			"select p_price from H_breakfast where H_id = ?;";
+       PreparedStatement pstmt = null;
+       float price = 0;
+        
+        try {
+ 
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, H_id);
+            ResultSet re = pstmt.executeQuery();
+            
+            while (re.next()) {
+           price = re.getFloat("p_price");
+            }
+            } 
+            catch (SQLException e) {
+            // TODO Auto-generated catch block
+        	e.printStackTrace();
+
+        } 
+        finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+            	e.printStackTrace();
+            }
+        }
+        return price;
+    }
+    
+    // breakfast 테이블에서 해당 호텔을 이용할 어린이의 조식가격을 가져옴
+    public float show_chprice(int H_id) {
+    	String sql = 
+    			"select c_price from H_breakfast where H_id = ?;";
+    	 PreparedStatement pstmt = null;
+        float price = 0;
+        
+        try {
+ 
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, H_id);
+            
+           ResultSet re = pstmt.executeQuery();
+           while (re.next()) {
+               price= re.getFloat("c_price");
+                }
+           } 
+            catch (SQLException e) {
+            // TODO Auto-generated catch block
+        	e.printStackTrace();
+        } 
+        finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+            	e.printStackTrace();
+
+
+            }
+        }
+        return price;
+    }
+
+    
+    public void  showReview(int h_id) {
+    	String sql = "SELECT comment from Review left join Reserve on Review.id = Reserve.id where Reserve.H_id = ?;";
+       PreparedStatement pstmt = null;
+
+
+        
+        try {
+ 
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, h_id);
+            ResultSet re = pstmt.executeQuery();
+            
+            while (re.next()) {
+              System.out.print(re.getString("comment"));
+            }
+        } catch (SQLException e) {
+        	System.out.print("찾고 있는 지역의 호텔에 리뷰가 존재하지 않습니다.");
+        } finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+
+            	System.out.print("찾고 있는 지역의 호텔에 리뷰가 존재하지 않습니다.");
+
+            }
+        }
+        return;
+    }
+	
+    // 호텔의 정보를 출력 
+	public Hotel select_Hotel(int H_id, int r_id)
+
+	{
+		String sql = "select * from Hotel join room on H_id = room.Hotel_id having  H_id = ? and r_id = ?;";
+        PreparedStatement pstmt = null;
+        Hotel re = new Hotel();
+        try {
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, H_id);
+            pstmt.setInt(2, r_id);
+
+            ResultSet rs = pstmt.executeQuery();
+ 
+            if (rs.next()) {
+                re.setid(rs.getInt("H_id"));
+                re.setname(rs.getString("H_name"));
+                re.setaddress(rs.getString("H_address"));
+                re.setPhone(rs.getString("H_phone"));
+                re.setb_price(rs.getFloat("b_price"));
+                room room = new room(rs.getInt("r_id"),rs.getString("grade"),rs.getFloat("ex_price"),rs.getInt("hotel_id"));
+                re.setroom(room);
+            }
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+        	System.out.print("찾고 있는 지역의 호텔은 존재하지 않습니다.");
+
+        } finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+            	System.out.print("찾고 있는 지역의 호텔은 존재하지 않습니다.");
+
+            }
+        }
+        return re;
+	}
+	
+	
+	// 저장된 호텔의 리스정보를 출력
+	public ArrayList<Hotel>  selectAll(String land) {
+    	String sql = "SELECT * from Hotel where address like '%"+land+"%'";
+       PreparedStatement pstmt = null;
+        ArrayList<Hotel> list = new ArrayList<Hotel>();
+
+        
+        try {
+ 
+            pstmt = conn.prepareStatement(sql);
+            ResultSet re = pstmt.executeQuery();
+            while (re.next()) {
+                Hotel h = new Hotel();
+                h.setid(re.getInt("H_id"));
+                h.setname(re.getString("Hotel_name"));
+                h.setaddress(re.getString("address"));
+                h.setPhone(re.getString("phone"));
+                h.setb_price(re.getFloat("B_price"));
+                list.add(h);
+            }
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+
+        	System.out.print("찾고 있는 지역의 호텔은 존재하지 않습니다.");
+        } finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+
+            	System.out.print("찾고 있는 지역의 호텔은 존재하지 않습니다.");
+
+            }
+        }
+        return list;
+    }
+	
+	// 호텔예약의 메뉴출력
+	public void Print_Hmenu(String land){
+		System.out.print("\n\n=================================================");
+		System.out.print("\n     "+ land +" 지역의 숙소를 알아보시겠습니까?\n");
+		System.out.print("=================================================\n");
+		System.out.print("1. 네(숙소도 알아보고 싶습니다.) 2. 아니오");	
+	}
+    
+    // 예약의 execute에 해당하며 1. 숙소 예약을 원할 시 저장된 숙소의 정보를 출력 숙소예약을 원할 시 H_reservation 테이블에 쿼리를 날림
+    // 2. 반환
+	public void Reserve_Hotel(String land, client client)
+	{
+		
+
+		Hotel hotel = new Hotel();
+		List<Hotel> H_list = new ArrayList<Hotel>();
+		List<room> R_list = new ArrayList<room>();
+
+		
+		while(true) 
+		{	
+			
+			Print_Hmenu(land);
+			System.out.print("\n 입력 :");
+			int menu = scan.nextInt();
+			int ch_n = 0;
+			int h_id = 0;
+			int r_id = 0;
+			
+			switch(menu)
+				{
+				case 1:
+					
+						H_list = selectAll(land);
+						if(H_list.size() != 0) {
+						System.out.print("\n===========================================================================================\n");
+						System.out.print("    id    name(이름)             address(주소지역)                      phone(전화번호)\n");
+					
+						for(int i=0; i < H_list.size(); i++)
+						{
+							hotel = H_list.get(i);
+							if(hotel.getid() != ch_n){
+								System.out.print(hotel.toString());
+								System.out.print("\n");
+								ch_n = hotel.getid();
+							}
+						}
+						
+						System.out.print("\n===============================================================================================\n");
+						System.out.print("\n원하시는 숙소의 ID을 입력하시오 \n");
+						System.out.print("숙소의 ID :");
+						h_id = scan.nextInt();
+						scan.nextLine();
+						
+						System.out.print("\n원하시는 숙소의 리뷰를 보시겠습니까? \n");
+						System.out.print("1. 네    2. 아니오");
+						System.out.print("\n 입력 :");
+						int review_me = scan.nextInt();
+						scan.nextLine();
+						if(review_me == 1)
+						{
+							System.out.print("\n===========================================================================================\n");
+							System.out.print("    comment\n");
+							showReview(h_id);
+							
+							System.out.print("\n===============================================================================================\n");
+							
+						}
+						
+						System.out.print("예약하고 싶은 날짜를 입력해주세요.\n");
+						
+						System.out.print("\ncheck_in 날짜 :");
+						String check_in = scan.nextLine();
+						System.out.print("\ncheck_out 날짜 :");
+						String check_out = scan.nextLine();
+						
+						
+						R_list = RoomIsEmpty(h_id, check_in, check_out);
+						System.out.print("\n===========================================================================================\n");
+						System.out.print("    r_id(호실)         grade(객실등급)        ex_price(등급에 따른 추가비용)\n");
+					
+						for(int i=0; i < R_list.size(); i++)
+						{
+							System.out.print(R_list.get(i));
+							System.out.print("\n");
+						}
+						
+						System.out.print("\n===============================================================================================\n");
+						System.out.print("\n원하시는 호실의 ID을 입력하시오 \n");
+						System.out.print("호실 :");
+						r_id = scan.nextInt();
+						hotel = select_Hotel(h_id, r_id);
+					
+						
+						
+						
+						
+						System.out.print("\n==============================================================================================================================\n");
+						System.out.print("             id    name(이름)         address(주소지역)       phone(전화번호)");
+						System.out.print("    r_id(호실)    grade(객실등급)         ex_price(등급에 따른 추가비용)\n");
+						System.out.print("선택한 호텔 : ");
+						System.out.print(hotel.toString());
+						System.out.print(hotel.getroom().toString());
+					
+						System.out.print("\n\n예약하는 성인 인원은 몇 명입니까?");
+						System.out.print("\n입력 :");
+						int ad_N = scan.nextInt();
+						
+						System.out.print("\n예약하는 어린이 인원은 몇 명입니까?");
+						System.out.print("\n입력 :");
+						int child_N = scan.nextInt();
+						
+						float Bf_Aprice = show_Adprice(h_id);
+						float Bf_Cprice = show_chprice(h_id);
+						System.out.print("\n조식은 신청하십니까?(추가요금은 어른 :" + Bf_Aprice +"어린이 :"+ Bf_Cprice + " )" );
+						System.out.print("\n1. 네   2. 아니오\n");
+						System.out.print("입력 :");
+						int Bf_nem = scan.nextInt();
+						
+						System.out.print("\n==============================================================================================================================\n");
+						System.out.print("             id    name(이름)         address(주소지역)       phone(전화번호)");
+						System.out.print("    r_id(호실)    grade(객실등급)         ex_price(등급에 따른 추가비용)\n");
+						System.out.print("선택한 호텔 : ");
+						System.out.print(hotel.toString());
+						System.out.print(hotel.getroom().toString());
+						
+						float BF_total = ad_N * Bf_Aprice + child_N * Bf_Cprice;
+						System.out.print("조식 총 비용 : " +BF_total + "\n");
+						
+						float all_total = BF_total + hotel.getb_price() +hotel.getroom().getex_price();
+						System.out.print(" 총 비용 : " + all_total + "\n");
+						System.out.print("\n예약하시겠습니까?");
+						System.out.print("\n1. 네   2. 아니오\n");
+						System.out.print("입력 :");
+						int nem = scan.nextInt();
+						if(nem == 1)
+							InsertReserve(hotel, client, check_in, check_out, all_total);
+							InsertPerson(ad_N,child_N);
+						}
+						else
+						{
+							System.out.print("입력하신 지역의 정보가 존재하지 않습니다.\n");
+						}
+						
+						break;
+						
+				case 2:
+					
+					return;
+					
+				default:
+			}
+		}
+	}       
+ }
+

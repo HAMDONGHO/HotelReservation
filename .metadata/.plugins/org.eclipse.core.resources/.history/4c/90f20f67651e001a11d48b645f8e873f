@@ -1,0 +1,409 @@
+package final_project;
+import instance.*;
+
+import java.sql.*;
+import java.util.*;
+
+ 
+// 이 클래스는 상태로써 디비와의 연결 객체를 가지고
+// 연결객체를 사용해서 Student테이블에 데이터를 
+// insert, delete, update, select.. 하는 기능을 수행해줌
+ 
+public class User {
+ 
+    private Connection conn;
+    //mySGL의 연결을 위한 ID, password, URL
+    private static final String USERNAME = "root";
+    private static final String PASSWORD = "ehdgh*7958";
+    private static final String URL = "jdbc:mysql://localhost:3306/reservation_system?serverTimezone=UTC";
+
+    
+    public Scanner scan = new Scanner(System.in);
+    
+    public User() {
+        // connection객체를 생성해서 디비에 연결해줌..
+        try {
+            Class.forName("com.mysql.cj.jdbc.Driver");
+ 
+            conn = DriverManager.getConnection(URL, USERNAME, PASSWORD);
+ 
+        } catch (ClassNotFoundException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            System.out.println("클래스에 적재를 실패!!");
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            System.out.println("mysql에 연결 실패!!");
+        }
+    }
+    
+    
+    // 회원의 정보을 입력하는 함수 - 회원가입에 이용함.
+    public void insertclient(client Client) {
+        String sql = "insert into Client values(?,?,?,?,?);";
+        PreparedStatement pstmt = null; //PreparedStatement는 ?를 문자로 인식, 입력받기 위함(sql문을 데베로)
+        try {
+            pstmt = conn.prepareStatement(sql);
+            
+            pstmt.setString(1, Client.getUser_Id());
+            pstmt.setString(2, Client.getName());
+            pstmt.setString(3, Client.getpassword());
+            pstmt.setString(4, Client.getpassport());
+            pstmt.setString(5, Client.getphone());
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+    }
+ 
+    // 회원 정보를 수정하는 함수 - 회원정보를 수정하는데  이용
+    public void updateClient(client Client) {
+        String sql = "UPDATE Client SET name=?, password=?, passport=?, phone=? where user_id = ?;";
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, Client.getName());
+            pstmt.setString(2, Client.getpassword());
+            pstmt.setString(3, Client.getpassport());
+            pstmt.setString(4, Client.getphone());
+            pstmt.setString(5, Client.getUser_Id());
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+    }
+    
+    //회원을 삭제하는 함수 - 회원를 삭제하는데 이용
+    public void deleteClient(String id) {
+        String sql = "delete from Client where user_id = ?;";
+        PreparedStatement pstmt = null;
+        try {
+            pstmt = conn.prepareStatement(sql); //객체 생성시 sql문장 저장
+            pstmt.setString(1, id); //ptsm.set타입(순서, 값)
+            pstmt.executeUpdate(); // sql문장 생성, 결과 리턴
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+    }
+    //단일의 화원정보를 가져오는 함수 - 로그인에 사용
+    public client selectOne(String user_id, String user_password) {
+    	
+    	 String sql = "select * from Client where user_id = ? AND password = ?;";
+        PreparedStatement pstmt = null;
+        client re = new client();
+        
+        try {
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, user_id);
+            pstmt.setString(2, user_password);
+            ResultSet rs = pstmt.executeQuery();
+ 
+            if (rs.next()) {
+                re.setUser_Id(rs.getString("user_id"));
+                re.setName(rs.getString("name"));
+                re.setpassword(rs.getString("password"));
+                re.setpassport(rs.getString("passport"));
+                re.setphone(rs.getString("phone"));
+            } //rs에 저장된 데이터 얻음
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+        	e.printStackTrace();
+        	
+
+        } finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed()) 
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+            	e.printStackTrace();
+
+            }
+        }
+        return re;
+    }
+ 
+    // 모든 예약 정보를 가져오는 함수 - user의 예약정보를 확인할 수 있음.
+    public List<Reserve> slectAllReserve(client client) {
+        String sql = "select id,H_name,r_id,check_in,check_out,total from Reserve as Re left join Hotel as Ho on Re.H_id = Ho.H_id where c_id = ?;";
+        PreparedStatement pstmt = null;
+ 
+        List<Reserve> list = new ArrayList<Reserve>();
+        try {
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, client.getUser_Id());
+            ResultSet re = pstmt.executeQuery();
+ 
+            while (re.next()) {
+            	  Reserve R = new Reserve();
+                R.setid(re.getInt("id"));
+                R.setHotel_name(re.getString("H_name"));
+                R.setroom_id(re.getInt("r_id"));
+                R.setcheck_in(re.getString("check_in"));
+                R.setcheck_out(re.getString("check_out"));
+                R.settotal(re.getFloat("total"));
+                list.add(R);
+            }
+ 
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+        return list;
+    }
+    
+    
+    // 모든 회원의 정보를 가져오는 함수
+    public List<client> slectAll() {
+        String sql = "select * from Client;";
+        PreparedStatement pstmt = null;
+ 
+        List<client> list = new ArrayList<client>();
+        try {
+            pstmt = conn.prepareStatement(sql);
+            ResultSet re = pstmt.executeQuery();
+ 
+            while (re.next()) {
+            	  client C = new client();
+                C.setUser_Id(re.getString("user_id"));
+                C.setName(re.getString("name"));
+                C.setpassword(re.getString("password"));
+                C.setpassport(re.getString("passprot"));
+                C.setpassword(re.getString("phone"));
+                list.add(C);
+            }
+ 
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+        return list;
+    }
+    public void InsertReview( int id ,String comment) {
+        String sql = "insert into Review values(?,?);";
+        PreparedStatement pstmt = null;
+       
+        try {
+            pstmt = conn.prepareStatement(sql);
+        
+            pstmt.setInt(1, id);
+            pstmt.setString(2, comment);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        } finally {
+            try {
+                if (pstmt != null && !pstmt.isClosed())
+                    pstmt.close();
+            } catch (SQLException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+        }
+    }
+    //////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////// 기능 //////////////////////////////////////////
+    
+    // 회원의 메인기능을 위한 메뉴출력함수
+    private void Main_PrintMenu()
+    {
+		System.out.println("\n             메뉴를 선택하시오");
+		System.out.println("=============================================");
+		System.out.println("1. 예약 2. 예약정보확인 3. 회원정보 수정 4. 종료  99. 회원탈퇴");
+		System.out.println("=============================================");
+    }
+
+    // 회원의 메인기능을 담당하는 함수
+    private void main_Cmenu(client c_client)
+    {
+    	reservation reserv = new reservation();
+    	
+    	while(true)
+    	{
+    		Main_PrintMenu();
+    		System.out.print(" 입력 :");
+    		int menu = scan.nextShort();
+    		scan.nextLine();
+    		
+    		switch(menu)
+    		{
+    		case 1:
+    		{
+    			
+    			System.out.println("\n예약하고자 하는 지역을 입력하시오");
+    			System.out.print("입력 :");
+    			String land = scan.nextLine();
+    			reserv.Reserve_Hotel(land, c_client);
+    			break;
+    		}
+    		case 2:
+    		{
+    			
+    			
+    			List<Reserve> Re_list = slectAllReserve(c_client);
+				System.out.print("\n===========================================================================================\n");
+				System.out.print("    id               호텔이름                           호실                  check_in                  check_out               total    \n");
+			 
+				for(int i=0; i < Re_list.size(); i++)
+				{
+					System.out.print(Re_list.get(i));
+					System.out.print("\n");
+				}
+				System.out.print("\n===========================================================================================\n");	
+    			
+				System.out.print("\n 리뷰를 남기시겠습니까? \n");	
+				System.out.print("\n 1.네         2. 아니오 \n");
+				int re_V = scan.nextInt();
+				
+				if( re_V == 1)
+				{
+					System.out.print("\n 리뷰를 남기실 아이디를 입력해주세요 \n");	
+					System.out.print("입력 : ");
+					int id = scan.nextInt();
+					scan.nextLine();
+					
+					System.out.print("\n 리뷰를 50자 내로 남겨주세용~!~!! \n");	
+					System.out.print("입력 : ");
+					String comment = scan.nextLine();
+					InsertReview(id,comment);
+				}
+    			
+    			break;
+    		}
+    		case 3:
+    		{
+    			c_client.Print_UInfo();
+    			
+    			
+    			String id = c_client.getUser_Id();
+    			System.out.print("\n회원정보를 수정하시오\n");
+    			System.out.print("\n이름 :");
+    			String name = scan.nextLine();
+    			System.out.print("\n비밀번호 :");
+    			String password = scan.nextLine();
+    			System.out.print("\n여권번호 :");
+    			String passport = scan.nextLine();
+    			System.out.print("\n전화번호 :");
+    			String phone = scan.nextLine();
+    			
+    			c_client.setclient(id,name,password,passport,phone);
+    			updateClient(c_client);
+    			break;
+    		}
+    		case 4:
+    			System.exit(0);
+    			break;
+    			
+    		case 99:
+    			deleteClient(c_client.getUser_Id());
+    			return;
+    		}
+    	}
+    }
+    
+ 
+    // 로그인을 위한 메뉴출력함수
+	private void login_PrintMenu()
+    {
+		System.out.println("\n\n 환영합니다. 회원님은 로그인 및 회원 가입을 하시기 바랍니다.");
+		System.out.println("==================================================");
+		System.out.println("1. login                  2. 회원가입");
+		System.out.println("==================================================");
+    }
+	
+	// 로그인을 기능을 담당하는 함수
+    public void login_client()
+    {
+    	client c_client = new client(); 
+    	
+    	while(true) {
+    	login_PrintMenu();
+    	System.out.print(" 입력 :");
+    	int menu = scan.nextInt();
+    	scan.nextLine();
+    	switch(menu)
+    	{
+    	
+    	// 로그인
+    	case 1:
+    		System.out.println("\n로그인을 위하여 아이디와 비밀번호를 입력하시오");
+    		System.out.println("\n아이디 :");
+    		String c_id = scan.nextLine();
+    		System.out.println("\n비밀번호 :");
+    		String c_Ps = scan.nextLine();
+    		
+    		c_client = selectOne(c_id, c_Ps);
+    		
+    		if(c_client.getUser_Id() != null) 
+    			main_Cmenu(c_client);
+    		else
+    			System.out.print("아이디나 비밀번호가 틀렸습니다. 다시 입력하시기바랍니다.");
+			break;
+		
+			
+			
+		// 회원가입
+    	case 2:
+			System.out.print("\n회원정보를 입력하시오\n");
+			System.out.print("\n아이디 :");
+			String user_id = scan.nextLine();
+			System.out.print("\n이름 :");
+			String name = scan.nextLine();
+			System.out.print("\n비밀번호 :");
+			String password = scan.nextLine();
+			System.out.print("\n여권번호 :");
+			String passport = scan.nextLine();
+			System.out.print("\n전화번호 :");
+			String phone = scan.nextLine();
+			client New_join = new client(user_id,name,password,passport,phone);
+    		insertclient(New_join);
+    	}
+    	}
+    	
+    }
+}
